@@ -23,7 +23,7 @@ openssl rsa -in jwt_test.rsa -pubout > jwt_test.rsa.pub
 
 2. Add the middleware
 ```
-vctl jst upsert -id=jwt_middleware -f someFrontend -publicKeyFile=jwt_test.rsa --vulcan=http://yourvulcanhost
+vctl jst upsert -id=jwt_middleware -f someFrontend -publicKeyFile=jwt_test.rsa.pub --vulcan=http://yourvulcanhost
 ```
 (`-id` can be whatever you want to call the instance of the middleware)
 
