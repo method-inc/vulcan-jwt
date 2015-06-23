@@ -45,4 +45,5 @@ vctl jwt rm -id=jwt_middeware -f someFrontend --vulcan=http://yourvulcanhost
 1. Write tests
 2. Write code
 3. Run tests until they pass
-4. Issue PR
+4. (optional, but preferred) Run `codeclimate analyze` and fix suggestions
+5. Issue PR
