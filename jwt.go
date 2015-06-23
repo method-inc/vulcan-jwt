@@ -1,3 +1,9 @@
+// Package jwt implements a JWT middleware option for Vulcan proxy
+// It will only parse tokens, putting all claims into a
+// X-USER Header.
+//
+// Once added to your vctl binary,  you can `vctl jwt` for
+// it's usage.
 package jwt
 
 // Note that I import the versions bundled with vulcand. That will make our lives easier, as we'll use exactly the same versions used
@@ -20,10 +26,14 @@ import (
 )
 
 const (
-	Type       = "jwt"
+	// Type of middleware
+	Type = "jwt"
+	// UserHeader is the header used to store user claims for
+	// downstream services
 	UserHeader = "X-USER"
 )
 
+// GetSpec is part of the Vulcan middleware interface
 func GetSpec() *plugin.MiddlewareSpec {
 	return &plugin.MiddlewareSpec{
 		Type:      Type,       // A short name for the middleware
@@ -33,13 +43,13 @@ func GetSpec() *plugin.MiddlewareSpec {
 	}
 }
 
-// AuthMiiddleware struct holds configuration parameters and is used to
+// JwtMiddleware struct holds configuration parameters and is used to
 // serialize/deserialize the configuration from storage engines.
 type JwtMiddleware struct {
 	PublicKey []byte
 }
 
-// Auth middleware handler
+// JwtHandler is the HTTP handler for the JWT middleware
 type JwtHandler struct {
 	cfg  JwtMiddleware
 	next http.Handler
@@ -57,8 +67,8 @@ func (a *JwtHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		newBody := bytes.NewBufferString("")
 		// We stop here, right?
 		//a.next.ServeHTTP(bw, r)
-		if err := ApplyString("{\"error\": \"forbidden\"}", newBody, r); err != nil {
-			fmt.Errorf("Can't write boddy")
+		if err := applyString("{\"error\": \"forbidden\"}", newBody, r); err != nil {
+			fmt.Errorf("can't write boddy")
 			return
 		}
 		w.Header().Set("Content-Length", strconv.Itoa(newBody.Len()))
@@ -70,7 +80,7 @@ func (a *JwtHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	// Reject the request by writing forbidden response
 	if !token.Valid {
-		fmt.Errorf("Error  parsing Token : %v", err)
+		fmt.Errorf("error parsing Token : %v", err)
 		w.WriteHeader(http.StatusForbidden)
 		return
 	}
@@ -89,15 +99,15 @@ func (a *JwtHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	a.next.ServeHTTP(w, r)
 }
 
-// This function is optional but handy, used to check input parameters when creating new middlewares
+// New is optional but handy, used to check input parameters when creating new middlewares
 func New(publicKeyArray []byte) (*JwtMiddleware, error) {
 	if len(publicKeyArray) == 0 {
-		return nil, fmt.Errorf("Please supply a public key")
+		return nil, fmt.Errorf("please supply a public key")
 	}
 	return &JwtMiddleware{PublicKey: publicKeyArray}, nil
 }
 
-// This function is important, it's called by vulcand to create a new handler from the middleware config and put it into the
+// NewHandler is important, it's called by vulcand to create a new handler from the middleware config and put it into the
 // middleware chain. Note that we need to remember 'next' handler to call
 func (c *JwtMiddleware) NewHandler(next http.Handler) (http.Handler, error) {
 	return &JwtHandler{next: next, cfg: *c}, nil
@@ -127,7 +137,7 @@ func FromCli(c *cli.Context) (plugin.Middleware, error) {
 		}
 		return New([]byte(keyFile))
 	}
-	return nil, fmt.Errorf("Please supply a public key file")
+	return nil, fmt.Errorf("please supply a public key file")
 }
 
 // CliFlags will be used by Vulcand construct help and CLI command for the vctl command
@@ -137,7 +147,7 @@ func CliFlags() []cli.Flag {
 	}
 }
 
-func ApplyString(in string, out io.Writer, request *http.Request) error {
+func applyString(in string, out io.Writer, request *http.Request) error {
 	t, err := template.New("t").Parse(in)
 	if err != nil {
 		return err
