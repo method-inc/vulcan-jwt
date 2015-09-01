@@ -57,6 +57,12 @@ type JwtHandler struct {
 
 // This function will be called each time the request hits the location with this middleware activated
 func (a *JwtHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+
+	// Let OPTIONS go on by
+	if r.Method == "OPTIONS" {
+		a.next.ServeHTTP(w, r)
+		return
+	}
 	keyfunc = func(token *jwt.Token) (interface{}, error) {
 		return a.cfg.PublicKey, nil
 	}
