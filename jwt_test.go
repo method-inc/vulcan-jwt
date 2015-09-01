@@ -101,6 +101,25 @@ func (s *JwtSuite) TestRequestSuccess(c *C) {
 	c.Assert(string(body), Equals, "treasure")
 }
 
+func (s *JwtSuite) TestIgnoreOptions(c *C) {
+	a := &JwtMiddleware{PublicKey: publicKey}
+
+	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		io.WriteString(w, "treasure")
+	})
+
+	auth, err := a.NewHandler(h)
+	c.Assert(err, IsNil)
+
+	srv := httptest.NewServer(auth)
+	defer srv.Close()
+
+	// bad token
+	re, _, err := testutils.MakeRequest(srv.URL, testutils.Method("OPTIONS"))
+	c.Assert(err, IsNil)
+	c.Assert(re.StatusCode, Equals, http.StatusOK)
+}
+
 func (s *JwtSuite) TestRequestBadToken(c *C) {
 	a := &JwtMiddleware{PublicKey: publicKey}
 
