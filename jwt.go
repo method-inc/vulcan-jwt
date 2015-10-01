@@ -91,6 +91,7 @@ func (a *JwtHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	log.Printf("token: %v\n", token)
 	log.Println(token.Claims)
 	// Add the UserHeader to the Request
 	claims, err := json.Marshal(token.Claims)
