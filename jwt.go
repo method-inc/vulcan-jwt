@@ -21,8 +21,8 @@ import (
 	"strconv"
 	"text/template"
 
-	"github.com/mailgun/vulcand/plugin"
 	"github.com/vulcand/vulcand/Godeps/_workspace/src/github.com/codegangsta/cli"
+	"github.com/vulcand/vulcand/plugin"
 )
 
 const (
