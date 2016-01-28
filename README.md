@@ -6,6 +6,8 @@ I hate to start with the negative, but:
 * I am pretty new to Go, so there's that
 * I am pretty new to Vulcan, so there's that too
 * I am scratching an itch, so if my itch didn't touch part of the JWT spec, I didn't scratch it. (A good example is generating a JWT key. We don't need it yet, so it's not here)
+* The only signing algorithm currently supported is RSA. If your token uses
+  something else, `vulcan-jwt` will deny the request.
 
 ## Install
 ```
@@ -40,6 +42,7 @@ vctl jwt rm -id=jwt_middeware -f someFrontend --vulcan=http://yourvulcanhost
 * Possibly add CLI parameter to allow unauthorized requests
 * Possible add generation
 * Clean it up as my Go goes
+* Allow signing algorithm to be configurable
 
 ## Contributing
 1. Write tests
