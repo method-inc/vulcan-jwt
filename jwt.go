@@ -66,10 +66,12 @@ func (a *JwtHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		a.next.ServeHTTP(w, r)
 		return
 	}
+
 	keyfunc = func(token *jwt.Token) (interface{}, error) {
 		return a.cfg.PublicKey, nil
 	}
 	token, err := jwt_request.ParseFromRequest(r, jwt_request.AuthorizationHeaderExtractor, keyfunc)
+
 	if err != nil {
 		fmt.Printf("Token Error: %v\n", err)
 		bw := &bufferWriter{header: make(http.Header), buffer: &bytes.Buffer{}}
@@ -87,6 +89,7 @@ func (a *JwtHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		io.Copy(w, newBody)
 		return
 	}
+
 	// Reject the request by writing forbidden response
 	if !token.Valid {
 		fmt.Errorf("error parsing Token : %v", err)
@@ -94,8 +97,11 @@ func (a *JwtHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// TOKEN VALIDATION SUCCESS //
+
 	log.Printf("token: %v\n", token)
 	log.Println(token.Claims.(jwt.MapClaims))
+
 	// Add the UserHeader to the Request
 	claims, err := json.Marshal(token.Claims.(jwt.MapClaims))
 	if err != nil {
@@ -103,6 +109,7 @@ func (a *JwtHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
+
 	r.Header.Set(UserHeader, string(claims))
 
 	// Pass the request to the next middleware in chain
