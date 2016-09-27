@@ -2,22 +2,25 @@ package jwt
 
 import (
 	"encoding/json"
-	jwt "github.com/dgrijalva/jwt-go"
-	. "github.com/mailgun/vulcand/Godeps/_workspace/src/gopkg.in/check.v1"
-	"github.com/vulcand/vulcand/Godeps/_workspace/src/github.com/codegangsta/cli"
-	"github.com/vulcand/vulcand/Godeps/_workspace/src/github.com/vulcand/oxy/testutils"
-	"github.com/vulcand/vulcand/plugin"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	jwt "github.com/dgrijalva/jwt-go"
+	. "github.com/mailgun/vulcand/Godeps/_workspace/src/gopkg.in/check.v1"
+	"github.com/vulcand/vulcand/Godeps/_workspace/src/github.com/codegangsta/cli"
+	"github.com/vulcand/vulcand/Godeps/_workspace/src/github.com/vulcand/oxy/testutils"
+	"github.com/vulcand/vulcand/plugin"
 )
 
 func init() {
-	privateKey, _ = ioutil.ReadFile("jwt_test.rsa")
-	publicKey, _ = ioutil.ReadFile("jwt_test.rsa.pub")
+	privateKeyData, _ := ioutil.ReadFile("jwt_test.rsa")
+	privateKey, _ = jwt.ParseRSAPrivateKeyFromPEM(privateKeyData)
+	publicKeyData, _ := ioutil.ReadFile("jwt_test.rsa.pub")
+	publicKey, _ = jwt.ParseRSAPublicKeyFromPEM(publicKeyData)
 }
 func TestCL(t *testing.T) { TestingT(t) }
 
@@ -33,7 +36,7 @@ func (s *JwtSuite) TestSpecIsOK(c *C) {
 }
 
 func (s *JwtSuite) TestNew(c *C) {
-	cl, err := New([]byte("key"))
+	cl, err := New(publicKey)
 	c.Assert(cl, NotNil)
 	c.Assert(err, IsNil)
 
@@ -44,14 +47,8 @@ func (s *JwtSuite) TestNew(c *C) {
 	c.Assert(err, IsNil)
 }
 
-func (s *JwtSuite) TestNewBadParams(c *C) {
-	// Empty key
-	_, err := New([]byte{})
-	c.Assert(err, NotNil)
-}
-
 func (s *JwtSuite) TestFromOther(c *C) {
-	a, err := New([]byte("key"))
+	a, err := New(publicKey)
 	c.Assert(a, NotNil)
 	c.Assert(err, IsNil)
 
@@ -69,9 +66,6 @@ func (s *JwtSuite) TestAuthFromCli(c *C) {
 		out, err := FromCli(ctx)
 		c.Assert(out, NotNil)
 		c.Assert(err, IsNil)
-
-		a := out.(*JwtMiddleware)
-		c.Assert(string(a.PublicKey), Equals, string(publicKey))
 	}
 	app.Flags = CliFlags()
 	app.Run([]string{"test", "--publicKeyFile=jwt_test.rsa.pub"})
@@ -96,7 +90,7 @@ func (s *JwtSuite) TestRequestSuccess(c *C) {
 	srv := httptest.NewServer(auth)
 	defer srv.Close()
 
-	_, body, err := testutils.Get(srv.URL, testutils.Header("Authorization", "Bearer "+*token))
+	_, body, err := testutils.Get(srv.URL, testutils.Header("Authorization", "Bearer "+token))
 	c.Assert(err, IsNil)
 	c.Assert(string(body), Equals, "treasure")
 }
@@ -173,9 +167,10 @@ func (s *JwtSuite) TestRequestExpiredToken(c *C) {
 
 func CreateExpiredJWTToken(userId string) *string {
 	token := jwt.New(jwt.GetSigningMethod("RS256"))
+	claims := token.Claims.(jwt.MapClaims)
 
-	token.Claims["userid"] = userId
-	token.Claims["exp"] = time.Now().Unix() - 3600
+	claims["userid"] = userId
+	claims["exp"] = time.Now().Unix() - 3600
 
 	tokenString, _ := token.SignedString(privateKey)
 	return &tokenString

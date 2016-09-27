@@ -10,16 +10,19 @@ package jwt
 // by vulcand. We are escaping dependency management troubles thanks to Godep.
 import (
 	"bytes"
+	"crypto/rsa"
 	"encoding/json"
 	"fmt"
-	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/vulcand/oxy/utils"
 	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"strconv"
 	"text/template"
+
+	jwt "github.com/dgrijalva/jwt-go"
+	jwt_request "github.com/dgrijalva/jwt-go/request"
+	"github.com/mailgun/vulcand/Godeps/_workspace/src/github.com/vulcand/oxy/utils"
 
 	"github.com/vulcand/vulcand/Godeps/_workspace/src/github.com/codegangsta/cli"
 	"github.com/vulcand/vulcand/plugin"
@@ -46,7 +49,7 @@ func GetSpec() *plugin.MiddlewareSpec {
 // JwtMiddleware struct holds configuration parameters and is used to
 // serialize/deserialize the configuration from storage engines.
 type JwtMiddleware struct {
-	PublicKey []byte
+	PublicKey *rsa.PublicKey
 }
 
 // JwtHandler is the HTTP handler for the JWT middleware
@@ -64,17 +67,10 @@ func (a *JwtHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// VALIDATE TOKEN //
-
-	token, err := jwt.ParseFromRequest(r, func(token *jwt.Token) (interface{}, error) {
-		// Validate algorithm!!
-		// Probably needs to be a configuration value.
-		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
-			return nil, fmt.Errorf("Invalid signing method: %v", token.Header["alg"])
-		}
-
+	keyfunc = func(token *jwt.Token) (interface{}, error) {
 		return a.cfg.PublicKey, nil
-	})
+	}
+	token, err := jwt_request.ParseFromRequest(r, jwt_request.AuthorizationHeaderExtractor, keyfunc)
 
 	if err != nil {
 		fmt.Printf("Token Error: %v\n", err)
@@ -104,10 +100,10 @@ func (a *JwtHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// TOKEN VALIDATION SUCCESS //
 
 	log.Printf("token: %v\n", token)
-	log.Println(token.Claims)
+	log.Println(token.Claims.(jwt.MapClaims))
 
 	// Add the UserHeader to the Request
-	claims, err := json.Marshal(token.Claims)
+	claims, err := json.Marshal(token.Claims.(jwt.MapClaims))
 	if err != nil {
 		log.Fatal("Cannot marshal claims to JSON")
 		w.WriteHeader(http.StatusBadRequest)
@@ -121,11 +117,8 @@ func (a *JwtHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 }
 
 // New is optional but handy, used to check input parameters when creating new middlewares
-func New(publicKeyArray []byte) (*JwtMiddleware, error) {
-	if len(publicKeyArray) == 0 {
-		return nil, fmt.Errorf("please supply a public key")
-	}
-	return &JwtMiddleware{PublicKey: publicKeyArray}, nil
+func New(publicKey *rsa.PublicKey) (*JwtMiddleware, error) {
+	return &JwtMiddleware{PublicKey: publicKey}, nil
 }
 
 // NewHandler is important, it's called by vulcand to create a new handler from the middleware config and put it into the
@@ -156,7 +149,8 @@ func FromCli(c *cli.Context) (plugin.Middleware, error) {
 		if err != nil {
 			fmt.Println("File error")
 		}
-		return New([]byte(keyFile))
+		key, _ := jwt.ParseRSAPublicKeyFromPEM(keyFile)
+		return New(key)
 	}
 	return nil, fmt.Errorf("please supply a public key file")
 }
